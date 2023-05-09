@@ -10,10 +10,7 @@ from jax import Array
 # Basic operation
 # ===================================================================
 
-# I am using a custom_jvp as to avoid NaN propagations when using
-# jnp.where. An alternative would be to use the double where trick.
-# Be careful with higher derivatives though, as derivatives beyond
-# the first could present NaNs.
+# A custom_jvp is used as to avoid NaN propagations when using jnp.where.
 
 
 @custom_jvp
