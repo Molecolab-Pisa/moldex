@@ -64,7 +64,7 @@ def angle_indices_from_traj(traj: Trajectory) -> Array:
 def dihe_indices_from_traj(traj: Trajectory) -> Array:
     """indices of atoms forming a dihedral
 
-    Get the list of atom indices for those triplets of
+    Get the list of atom indices for those quartets of
     atoms that are directly bonded.
 
     Args:
