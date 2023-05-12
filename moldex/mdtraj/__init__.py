@@ -1,1 +1,1 @@
-from .helpers import bond_indices_from_traj
+from .helpers import bond_indices_from_traj, angle_indices_from_traj
