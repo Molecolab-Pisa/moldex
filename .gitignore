@@ -7,3 +7,5 @@ __pycache__/
 *.so
 dev_notebooks/
 build/
+moldex/moldex_jax_version.py
+lib/test/
