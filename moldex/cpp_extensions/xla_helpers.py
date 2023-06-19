@@ -2,6 +2,7 @@ from jax.interpreters import mlir
 import jax.numpy as jnp
 import numpy as np
 
+
 def atleast_1d_arrays(*arrs):
     return [jnp.atleast_1d(arr) for arr in arrs]
 
@@ -26,4 +27,3 @@ def mlir_dtype_and_shape(arg):
     dtype = mlir.ir.RankedTensorType(arg)
     shape = dtype.shape
     return dtype, shape
-

@@ -13,7 +13,14 @@ from jax.interpreters import mlir, xla, batching  # ad
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 from jax._src.numpy.util import promote_dtypes_inexact, promote_dtypes_numeric
-from .xla_helpers import atleast_1d_arrays, size_arrays, default_layouts, array_shapes, reduce_array_shapes, mlir_dtype_and_shape
+from .xla_helpers import (
+    atleast_1d_arrays,
+    size_arrays,
+    default_layouts,
+    #    array_shapes,
+    reduce_array_shapes,
+    mlir_dtype_and_shape,
+)
 
 # Register the CPU XLA custom calls
 from . import cpu_ops
