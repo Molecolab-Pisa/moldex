@@ -55,8 +55,8 @@ class CMakeBuildExt(build_ext):
             "-DCMAKE_BUILD_TYPE={}".format("Debug" if self.debug else "Release"),
             "-DCMAKE_PREFIX_PATH={}".format(pybind11.get_cmake_dir()),
         ]
-        if os.environ.get("RECURSIVE_HERMITE_JAX_CUDA", "no").lower() == "yes":
-            cmake_args.append("-DRECURSIVE_HERMITE_JAX_CUDA=yes")
+        if os.environ.get("MOLDEX_CUDA", "no").lower() == "yes":
+            cmake_args.append("-DMOLDEX_CUDA=yes")
 
         os.makedirs(self.build_temp, exist_ok=True)
         subprocess.check_call(["cmake", HERE] + cmake_args, cwd=self.build_temp)
@@ -85,10 +85,10 @@ extensions = [
     ),
 ]
 
-if os.environ.get("RECURSIVE_HERMITE_JAX_CUDA", "no").lower() == "yes":
+if os.environ.get("MOLDEX_CUDA", "no").lower() == "yes":
     extensions.append(
         Extension(
-            "recursive_hermite_jax.gpu_ops",
+            "moldex.gpu_ops",
             [
                 "moldex/cuda_extensions/gpu_ops.cc",
                 "moldex/cuda_extensions/cuda_kernels.cc.cu",

@@ -1,18 +1,19 @@
 # based on: https://github.com/dfm/extending-jax/tree/main
 # extremely useful
 
-__all__ = ["recursive_hermite_coefficient"]
+__all__ = ["retain_full_residues"]
 
 from functools import partial
 
 import numpy as np
+import jax
 from jax import core, dtypes, lax
 from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
-from jax.interpreters import mlir, xla, batching  # ad
+from jax.interpreters import mlir, xla  # , batching  # ad
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
-from jax._src.numpy.util import promote_dtypes_inexact, promote_dtypes_numeric
+from jax._src.numpy.util import promote_dtypes_numeric
 from .xla_helpers import atleast_1d_arrays, size_arrays, default_layouts, array_shapes, reduce_array_shapes, mlir_dtype_and_shape
 
 # Register the CPU XLA custom calls
@@ -24,7 +25,7 @@ from . import cpu_ops
 # ============================================================================
 
 for _name, _value in cpu_ops.registrations().items():
-    if _name.startswith("cpu_recursive_hermite"):
+    if _name.startswith("cpu_retain_full_residues"):
         # _value is a PyCapsule object containing the function pointer
         xla_client.register_cpu_custom_call_target(_name, _value)
 
@@ -41,17 +42,20 @@ else:
 # Interface between the JAX primitive and the user
 # ============================================================================
 
-
-def recursive_hermite_coefficient(i, j, t, Qx, a, b):
-    i, j, t = atleast_1d_arrays(*promote_dtypes_numeric(i, j, t))
-    assert jnp.issubdtype(lax.dtype(i), jnp.integer)
-    assert jnp.issubdtype(lax.dtype(j), jnp.integer)
-    assert jnp.issubdtype(lax.dtype(t), jnp.integer)
-    Qx, a, b = atleast_1d_arrays(*promote_dtypes_inexact(Qx, a, b))
-    i_size, j_size, t_size, Qx_size, a_size, b_size = size_arrays(i, j, t, Qx, a, b)
-    return _recursive_hermite_prim.bind(
-        i, j, t, Qx, a, b, i_size, j_size, t_size, Qx_size, a_size, b_size
-    )
+@jax.jit
+def retain_full_residues(idx, residues_array):
+    # ===
+    # Uncommenting this results in 2x slower function
+    #
+    # idx, residues_array = atleast_1d_arrays(
+    #     *promote_dtypes_numeric(idx, residues_array)
+    # )
+    # ===
+    assert jnp.issubdtype(lax.dtype(idx), jnp.integer)
+    assert jnp.issubdtype(lax.dtype(residues_array), jnp.integer)
+    idx_max = idx.shape[0]
+    n_resids = residues_array.shape[0] - 1
+    return _retain_full_residues_prim.bind(idx, residues_array, idx_max, n_resids)
 
 
 # ============================================================================
@@ -59,10 +63,10 @@ def recursive_hermite_coefficient(i, j, t, Qx, a, b):
 # ============================================================================
 
 
-# easy because the C++ functions supports batching by design
-def _recursive_hermite_batching_rule(batched_args, batch_dims):
-    i, j, t, Qx, a, b, *_ = batched_args
-    return recursive_hermite_coefficient(i, j, t, Qx, a, b), 0
+# # easy because the C++ functions supports batching by design
+# def _recursive_hermite_batching_rule(batched_args, batch_dims):
+#     i, j, t, Qx, a, b, *_ = batched_args
+#     return recursive_hermite_coefficient(i, j, t, Qx, a, b), 0
 
 
 # slow version of batching, loops in python
@@ -100,95 +104,55 @@ def _recursive_hermite_batching_rule(batched_args, batch_dims):
 # ============================================================================
 
 
-def _recursive_hermite_abstract_eval(
-    i, j, t, Qx, a, b, i_size, j_size, t_size, Qx_size, a_size, b_size
-):
-    out_shape = reduce_array_shapes(i, j, t, Qx, a, b)
-    # we take the dtype of Qx as representative, but in the interface
-    # function Qx, a, and b are recasted with the same inexact type
-    dtype = dtypes.canonicalize_dtype(Qx.dtype)
+def _retain_full_residues_abstract_eval(idx, residues_array, idx_max, n_resids):
+    out_shape = idx.shape
+    dtype = dtypes.canonicalize_dtype(idx.dtype)
     return ShapedArray(out_shape, dtype)
 
 
-def _recursive_hermite_lowering(
+def _retain_full_residues_lowering(
     ctx,
-    i,
-    j,
-    t,
-    Qx,
-    a,
-    b,
-    i_size,
-    j_size,
-    t_size,
-    Qx_size,
-    a_size,
-    b_size,
+    idx,
+    residues_array,
+    idx_max,
+    n_resids,
     *,
     platform="cpu",
 ):
-    i_aval, j_aval, t_aval, Qx_aval, a_aval, b_aval, _, _, _, _, _, _ = ctx.avals_in
+    idx_aval, residues_array_aval, idx_max_aval, n_resids_aval, *_ = ctx.avals_in
+    out_shape = idx_aval.shape
+    np_dtype = np.dtype(idx_aval.dtype)
 
-    out_shape = reduce_array_shapes(i_aval, j_aval, t_aval, Qx_aval, a_aval, b_aval)
-
-    # only checking the dtype of Qx as Qx, a, b
-    # are promoted together in the function interface to the
-    # same canonical inxact type, and i, j, t are checked
-    # to be integer in the same interface
-    np_dtype = np.dtype(Qx_aval.dtype)
-
-    i_dtype, i_shape = mlir_dtype_and_shape(i.type)
-    j_dtype, j_shape = mlir_dtype_and_shape(j.type)
-    t_dtype, t_shape = mlir_dtype_and_shape(t.type)
-    Qx_dtype, Qx_shape = mlir_dtype_and_shape(Qx.type)
-    a_dtype, a_shape = mlir_dtype_and_shape(a.type)
-    b_dtype, b_shape = mlir_dtype_and_shape(b.type)
-    i_size_dtype, i_size_shape = mlir_dtype_and_shape(i_size.type)
-    j_size_dtype, j_size_shape = mlir_dtype_and_shape(j_size.type)
-    t_size_dtype, t_size_shape = mlir_dtype_and_shape(t_size.type)
-    Qx_size_dtype, Qx_size_shape = mlir_dtype_and_shape(Qx_size.type)
-    a_size_dtype, a_size_shape = mlir_dtype_and_shape(a_size.type)
-    b_size_dtype, b_size_shape = mlir_dtype_and_shape(b_size.type)
+    idx_dtype, idx_shape = mlir_dtype_and_shape(idx.type)
+    residues_array_dtype, residues_array_shape = mlir_dtype_and_shape(
+        residues_array.type
+    )
+    idx_max_dtype, idx_max_shape = mlir_dtype_and_shape(idx_max.type)
+    n_resids_dtype, n_resids_shape = mlir_dtype_and_shape(n_resids.type)
 
     # We dispatch a different call depending on the dtype
-    if np_dtype == np.float32:
-        op_name = platform + "_recursive_hermite_f32"
-    elif np_dtype == np.float64:
-        op_name = platform + "_recursive_hermite_f64"
+    if np_dtype == np.int32:
+        op_name = platform + "_retain_full_residues_i32"
+    elif np_dtype == np.int64:
+        op_name = platform + "_retain_full_residues_i64"
     else:
         raise NotImplementedError(f"Unsupported dtype {np_dtype}")
 
     if platform == "cpu":
         out = custom_call(
             op_name,
-            out_types=[mlir.ir.RankedTensorType.get(out_shape, Qx_dtype.element_type)],
+            out_types=[mlir.ir.RankedTensorType.get(out_shape, idx_dtype.element_type)],
             operands=[
-                i,
-                j,
-                t,
-                Qx,
-                a,
-                b,
-                i_size,
-                j_size,
-                t_size,
-                Qx_size,
-                a_size,
-                b_size,
+                idx,
+                residues_array,
+                idx_max,
+                n_resids,
             ],
             operand_layouts=default_layouts(
-                i_shape,
-                j_shape,
-                t_shape,
-                Qx_shape,
-                a_shape,
-                b_shape,
-                i_size_shape,
-                j_size_shape,
-                t_size_shape,
-                Qx_size_shape,
-                a_size_shape,
-                b_size_shape,
+                idx_shape,
+                residues_array_shape,
+                idx_max_shape,
+                n_resids_shape,
             ),
             result_layouts=default_layouts(out_shape),
         )
@@ -196,7 +160,7 @@ def _recursive_hermite_lowering(
     elif platform == "gpu":
         if gpu_ops is None:
             raise ValueError(
-                "The 'kepler_jax' module was not compiled with CUDA support"
+                "The 'retain_full_residues' module was not compiled with CUDA support"
             )
         raise ValueError("not implemented")
     #         # On the GPU, we do things a little differently and encapsulate the
@@ -265,19 +229,21 @@ def _recursive_hermite_lowering(
 # JAX primitive registration
 # ============================================================================
 
-_recursive_hermite_prim = core.Primitive("recursive_hermite")
-_recursive_hermite_prim.multiple_results = False
-_recursive_hermite_prim.def_impl(partial(xla.apply_primitive, _recursive_hermite_prim))
-_recursive_hermite_prim.def_abstract_eval(_recursive_hermite_abstract_eval)
+_retain_full_residues_prim = core.Primitive("retain_full_residues")
+_retain_full_residues_prim.multiple_results = False
+_retain_full_residues_prim.def_impl(
+    partial(xla.apply_primitive, _retain_full_residues_prim)
+)
+_retain_full_residues_prim.def_abstract_eval(_retain_full_residues_abstract_eval)
 
 # Connect the XLA translation rules for JIT compilation
 for platform in ["cpu", "gpu"]:
     mlir.register_lowering(
-        _recursive_hermite_prim,
-        partial(_recursive_hermite_lowering, platform=platform),
+        _retain_full_residues_prim,
+        partial(_retain_full_residues_lowering, platform=platform),
         platform=platform,
     )
 
 # # Connect the JVP and batching rules
 # ad.primitive_jvps[_kepler_prim] = _kepler_jvp
-batching.primitive_batchers[_recursive_hermite_prim] = _recursive_hermite_batching_rule
+# batching.primitive_batchers[_recursive_hermite_prim] = _recursive_hermite_batching_rule
