@@ -1,18 +1,18 @@
-#ifndef _RECURSIVE_HERMITE_JAX_H
-#define _RECURSIVE_HERMITE_JAX_H
+#ifndef _MOLDEX_RECURSIVE_HERMITE_H
+#define _MOLDEX_RECURSIVE_HERMITE_H
 
 #include <cmath>
 
-namespace recursive_hermite_jax {
+namespace moldex {
 
 #ifdef __CUDACC__
-#define RECURSIVE_HERMITE_JAX_INLINE_OR_DEVICE __host__ __device__
+#define MOLDEX_INLINE_OR_DEVICE __host__ __device__
 #else
-#define RECURSIVE_HERMITE_JAX_INLINE_OR_DEVICE inline
+#define MOLDEX_INLINE_OR_DEVICE inline
 #endif
 
 template <typename T>
-RECURSIVE_HERMITE_JAX_INLINE_OR_DEVICE T recursive_hermite_coefficient(int i, int j, int t,T  Qx, T a, T b) {
+MOLDEX_INLINE_OR_DEVICE T recursive_hermite_coefficient(int i, int j, int t,T  Qx, T a, T b) {
     T p = a + b;
     T q = a * b / p;
     if (t < 0 || t > i + j) {
@@ -33,7 +33,7 @@ RECURSIVE_HERMITE_JAX_INLINE_OR_DEVICE T recursive_hermite_coefficient(int i, in
     }
 }
 
-} // namespace recursive_hermite_jax
+} // namespace moldex
 
 
 #endif

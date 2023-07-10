@@ -12,7 +12,7 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/lib)
 pybind11_add_module(cpu_ops ${CMAKE_CURRENT_LIST_DIR}/lib/cpu_ops.cc)
 install(TARGETS cpu_ops DESTINATION moldex/cpp_extensions)
 
-if (RECURSIVE_HERMITE_JAX_CUDA)
+if (MOLDEX_CUDA)
   enable_language(CUDA)
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
   pybind11_add_module(

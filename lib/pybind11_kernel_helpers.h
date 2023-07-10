@@ -4,14 +4,14 @@
 // the CUDA code itself doesn't include pybind11. I don't think that this is
 // strictly necessary, but they do it in jaxlib, so let's do it here too.
 
-#ifndef _RECURSIVE_HERMITE_JAX_PYBIND11_KERNEL_HELPERS_H_
-#define _RECURSIVE_HERMITE_JAX_PYBIND11_KERNEL_HELPERS_H_
+#ifndef _MOLDEX_PYBIND11_KERNEL_HELPERS_H_
+#define _MOLDEX_PYBIND11_KERNEL_HELPERS_H_
 
 #include <pybind11/pybind11.h>
 
 #include "kernel_helpers.h"
 
-namespace recursive_hermite_jax {
+namespace moldex {
 
 template <typename T>
 pybind11::bytes PackDescriptor(const T& descriptor) {
@@ -23,6 +23,6 @@ pybind11::capsule EncapsulateFunction(T* fn) {
   return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET");
 }
 
-}  // namespace recursive_hermite_jax
+}  // namespace moldex
 
 #endif

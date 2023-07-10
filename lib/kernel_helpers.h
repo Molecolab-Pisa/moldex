@@ -3,15 +3,15 @@
 // descriptors that are used with the "opaque" parameter of the GPU custom call. In our example
 // we'll use this parameter to pass the size of our problem.
 
-#ifndef _RECURSIVE_HERMITE_JAX_KERNEL_HELPERS_H_
-#define _RECURSIVE_HERMITE_JAX_KERNEL_HELPERS_H_
+#ifndef _MOLDEX_KERNEL_HELPERS_H_
+#define _MOLDEX_KERNEL_HELPERS_H_
 
 #include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
 
-namespace recursive_hermite_jax {
+namespace moldex {
 
 // https://en.cppreference.com/w/cpp/numeric/bit_cast
 template <class To, class From>
@@ -41,6 +41,6 @@ const T* UnpackDescriptor(const char* opaque, std::size_t opaque_len) {
   return bit_cast<const T*>(opaque);
 }
 
-}  // namespace recursive_hermite_jax
+}  // namespace moldex
 
 #endif

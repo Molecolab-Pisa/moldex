@@ -13,40 +13,17 @@ from jax.interpreters import mlir, xla, batching  # ad
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
 from jax._src.numpy.util import promote_dtypes_inexact, promote_dtypes_numeric
+from .xla_helpers import (
+    atleast_1d_arrays,
+    size_arrays,
+    default_layouts,
+    #    array_shapes,
+    reduce_array_shapes,
+    mlir_dtype_and_shape,
+)
 
 # Register the CPU XLA custom calls
 from . import cpu_ops
-
-
-# ============================================================================
-# Some helper functions
-# ============================================================================
-
-
-def atleast_1d_arrays(*arrs):
-    return [jnp.atleast_1d(arr) for arr in arrs]
-
-
-def size_arrays(*arrs):
-    return [np.prod(arr.shape) for arr in arrs]
-
-
-def default_layouts(*shapes):
-    return [range(len(shape) - 1, -1, -1) for shape in shapes]
-
-
-def array_shapes(*arrs):
-    return [arr.shape for arr in arrs]
-
-
-def reduce_array_shapes(*arrs):
-    return sum(array_shapes(*arrs), ())
-
-
-def mlir_dtype_and_shape(arg):
-    dtype = mlir.ir.RankedTensorType(arg)
-    shape = dtype.shape
-    return dtype, shape
 
 
 # ============================================================================
@@ -54,8 +31,9 @@ def mlir_dtype_and_shape(arg):
 # ============================================================================
 
 for _name, _value in cpu_ops.registrations().items():
-    # _value is a PyCapsule object containing the function pointer
-    xla_client.register_cpu_custom_call_target(_name, _value)
+    if _name.startswith("cpu_recursive_hermite"):
+        # _value is a PyCapsule object containing the function pointer
+        xla_client.register_cpu_custom_call_target(_name, _value)
 
 # If the GPU versions exist, also register those
 try:

@@ -6,6 +6,13 @@ import jax.numpy as jnp
 
 Trajectory = Any
 
+# import warnings
+#
+# try:
+#     import mdtraj as md
+# except ImportError:
+#     warnings.warn('MDTraj is not installed. MDTraj helpers not available.')
+
 
 def bond_indices_from_traj(traj: Trajectory) -> Array:
     """indices of atoms forming a bond

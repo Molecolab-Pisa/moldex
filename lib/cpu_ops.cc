@@ -1,7 +1,8 @@
+#include "retain_full_residues.h"
 #include "recursive_hermite.h"
 #include "pybind11_kernel_helpers.h"
 
-using namespace recursive_hermite_jax;
+using namespace moldex;
 
 namespace {
 
@@ -51,10 +52,25 @@ void cpu_recursive_hermite(void *out, const void **in) {
                         }
 }
 
+template <typename T>
+void cpu_retain_full_residues(void *out, const void **in) {
+    const T *idx = reinterpret_cast<const T *>(in[0]);
+    const T *residues_array = reinterpret_cast<const T *>(in[1]);
+    const T idx_max = *(reinterpret_cast<const T *>(in[2]));
+    const T n_resids = *(reinterpret_cast<const T *>(in[3]));
+
+    T *result = reinterpret_cast<T *>(out);
+
+    retain_full_residues(idx, residues_array, idx_max, n_resids, result);
+}
+
+
 pybind11::dict Registrations() {
     pybind11::dict dict;
     dict["cpu_recursive_hermite_f32"] = EncapsulateFunction(cpu_recursive_hermite<float>);
     dict["cpu_recursive_hermite_f64"] = EncapsulateFunction(cpu_recursive_hermite<double>);
+    dict["cpu_retain_full_residues_i32"] = EncapsulateFunction(cpu_retain_full_residues<std::int32_t>);
+    dict["cpu_retain_full_residues_i64"] = EncapsulateFunction(cpu_retain_full_residues<std::int64_t>);
     return dict;
 }
 
