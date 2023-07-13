@@ -110,6 +110,7 @@ setup(
         "moldex.mdtraj",
         "moldex.pytraj",
         "moldex.cpp_extensions",
+        "moldex.sample_selection",
     ],
     include_package_data=True,
     install_requires=["jax", "jaxlib"],
