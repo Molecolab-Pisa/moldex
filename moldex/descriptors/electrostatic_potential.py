@@ -42,6 +42,33 @@ def cut_box(coords1: ArrayLike, coords2: ArrayLike, cutoff: float) -> Array:
     return idx0
 
 
+def cut_environment(
+    coords1: ArrayLike, coords2: ArrayLike, residues_array: ArrayLike, cutoff: float
+) -> Array:
+    """Cuts the environment part (coords2)
+
+    Performs a cut (selects/deselects) of the environment (coords2)
+    according to a cutoff. Residues with at least one atom within the
+    cutoff are fully retained.
+
+    Args:
+        coords1: shape (n_atoms_1, 3)
+        coords2: shape (n_atoms_2, 3)
+        residues_array:
+        cutoff: cutoff value to cut the box
+    Returns:
+        idx: 1/0 if an atom in coords2 is retained/excluded,
+             shape (n_atoms_2,)
+    """
+    idx0 = cut_box(coords1, coords2, cutoff)
+    mask = idx0.copy()
+    dd = distances(coords1, coords2[mask])
+    idx_cut = jnp.max(jnp.where(dd < cutoff, 1, 0), axis=0).astype(bool)
+    idx0 = idx0.at[mask].set(idx_cut)
+    idx = retain_full_residues(idx0.astype(int), residues_array)
+    return idx
+
+
 # ===================================================================
 # Descriptor (function level)
 # ===================================================================
@@ -101,12 +128,7 @@ def _electrostatic_potential(
         potential: electrostatic potential on the atoms of 1,
                    shape (n_atoms_1,)
     """
-    idx0 = cut_box(coords1, coords2, cutoff)
-    mask = idx0.copy()
-    dd = distances(coords1, coords2[mask])
-    idx_cut = jnp.max(jnp.where(dd < cutoff, 1, 0), axis=0).astype(bool)
-    idx0 = idx0.at[mask].set(idx_cut)
-    idx = retain_full_residues(idx0.astype(int), residues_array)
+    idx = cut_environment(coords1, coords2, residues_array, cutoff)
     mask = idx.copy().astype(bool)
     dd = distances(coords1, coords2[mask])
     pot = compute_potential(charges2[mask], idx[mask], dd)
@@ -174,6 +196,19 @@ class MMElectrostaticPotential:
             coords: coordinates of the whole system, shape (n_atoms, 3)
         """
         return self._encode(coords)
+
+    def cut_environment(self, coords: ArrayLike) -> Array:
+        """Cuts the environment
+
+        Args:
+            coords: coordinates of the whole system, shape (n_atoms, 3)
+        Returns:
+            idx: 1/0 if an atom is included/excluded in the calculation
+                 of the potential
+        """
+        qm_coords = coords[self.qm_indices]
+        mm_coords = coords[self.mm_indices]
+        return cut_environment(qm_coords, mm_coords, self.residues_array, self.cutoff)
 
 
 # These functions represent efforts to write retain_full_residues in pure JAX
