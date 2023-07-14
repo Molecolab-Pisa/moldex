@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 
 Topology = Any
+MMElectrostaticPotential = Any
 
 
 def _get_charges_db(charges_db: str) -> np.ndarray:
@@ -121,3 +122,80 @@ def data_for_elecpot(
     residues_array = _get_residues_array(top, mm_indices)
 
     return qm_indices, mm_indices, mm_charges, residues_array
+
+
+def visualize_cut_pdb(
+    elecpot: MMElectrostaticPotential,
+    coords: ArrayLike,
+    top: Topology,
+    outfile: str = "ml_env_cut.pdb",
+) -> None:
+    """Visualize the environment cut in the electrostatic potential
+
+    Writes a PDB file to visualize the ML part and the environment part
+    used in the calculation of the environment electrostatic potential on the
+    ML atoms.
+
+    The ML and environment parts are distinguished from their residue name:
+    ML for the ML
+    ENV for the environment
+
+    Args:
+        elecpot: MMElectrostaticPotential class
+        coords: coordinates of the full system, shape (n_atoms, 3)
+        outfile: name of the output file
+    """
+    _PDB_STD_FORMAT_ = (
+        "ATOM  {:5d} {:<4s} {:3s} {:5d}    {:8.3f}{:8.3f}{:8.3f}  0.00  0.00  \n"
+    )
+
+    # True if a MM atom is included in the cutoff
+    idx_cut = elecpot.cut_environment(coords)
+
+    def mm_atom_is_included(i):
+        return idx_cut[i]
+
+    def get_data_for_pdb(i):
+        atom_name = top.atom(i).name
+        residue_id = top.atom(i).resid
+        x, y, z = coords[i]
+        return atom_name, residue_id, x, y, z
+
+    with open(outfile, "w") as handle:
+        # atom index
+        atom_index = 1
+
+        # QM part
+        for i in elecpot.qm_indices:
+            atom_name, residue_id, x, y, z = get_data_for_pdb(i)
+            residue_name = "ML"
+            handle.write(
+                _PDB_STD_FORMAT_.format(
+                    atom_index,
+                    atom_name,
+                    residue_name,
+                    residue_id,
+                    x,
+                    y,
+                    z,
+                )
+            )
+            atom_index += 1
+
+        # MM part
+        for i_enum, i in enumerate(elecpot.mm_indices):
+            if mm_atom_is_included(i_enum):
+                atom_name, residue_id, x, y, z = get_data_for_pdb(i)
+                residue_name = "ENV"
+                handle.write(
+                    _PDB_STD_FORMAT_.format(
+                        atom_index,
+                        atom_name,
+                        residue_name,
+                        residue_id,
+                        x,
+                        y,
+                        z,
+                    )
+                )
+                atom_index += 1
