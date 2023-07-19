@@ -7,8 +7,71 @@ from jax.typing import ArrayLike
 import jax.numpy as jnp
 import numpy as np
 
+from ..helpers_utils import (
+    with_lexicographically_sorted_output,
+    angle_indices_from_bonds,
+    dihe_indices_from_bonds_angles,
+)
+
+Trajectory = Any
 Topology = Any
 MMElectrostaticPotential = Any
+
+
+@with_lexicographically_sorted_output
+def bond_indices_from_traj(traj: Trajectory) -> Array:
+    """indices of atoms forming a bond
+
+    Get the list of atom indices for those atoms that
+    are directly bonded.
+
+    Args:
+        traj: pytraj trajectory
+
+    Returns:
+        bond_indices: array of bond indices, shape (n_bonds, 2)
+    """
+    bond_indices = jnp.array(traj.top.bond_indices, dtype=int)
+    # enforce a convention for bond ordering here:
+    # the first atom has a smaller index
+    bond_indices = jnp.sort(bond_indices, axis=1)
+    return bond_indices
+
+
+@with_lexicographically_sorted_output
+def angle_indices_from_traj(traj: Trajectory) -> Array:
+    """indices of atoms forming an angle
+
+    Get the list of atom indices for those triplets of
+    atoms that are directly bonded.
+
+    Args:
+        traj: pytraj trajectory
+
+    Returns:
+        angle_indices: array of angle indices, shape (n_angles, 3)
+    """
+    bond_indices = bond_indices_from_traj(traj)
+    angle_indices = angle_indices_from_bonds(bond_indices)
+    return angle_indices
+
+
+def dihe_indices_from_traj(traj: Trajectory) -> Array:
+    """indices of atoms forming a dihedral
+
+    Get the list of atom indices for those quartets of
+    atoms that are directly bonded.
+
+    Args:
+        traj: pytraj trajectory
+
+    Returns:
+        dihe_indices: array of dihedral indices, shape (n_diheds, 4)
+    """
+    bond_indices = bond_indices_from_traj(traj)
+    angle_indices = angle_indices_from_bonds(bond_indices)
+    dihe_indices = dihe_indices_from_bonds_angles(bond_indices, angle_indices)
+    return dihe_indices
 
 
 def _get_charges_db(charges_db: str) -> np.ndarray:
