@@ -4,3 +4,4 @@ from .coulomb_matrix import coulomb_matrix
 from .dihedral_matrix import dihe_matrix, batched_dihe_matrix
 from .inverse_distance import inverse_distance_matrix
 from .electrostatic_potential import electrostatic_potential, MMElectrostaticPotential
+from .re_matrix import re_matrix, batched_re_matrix
