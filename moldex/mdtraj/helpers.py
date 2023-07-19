@@ -1,10 +1,16 @@
 from __future__ import annotations
-from typing import Any, List
+from typing import Any
 
 from jax import Array
 import jax.numpy as jnp
 
-Trajectory = Any
+from ..helpers_utils import (
+    with_lexicographically_sorted_output,
+    angle_indices_from_bonds,
+    dihe_indices_from_bonds_angles,
+)
+
+Topology = Any
 
 # import warnings
 #
@@ -14,82 +20,61 @@ Trajectory = Any
 #     warnings.warn('MDTraj is not installed. MDTraj helpers not available.')
 
 
-def bond_indices_from_traj(traj: Trajectory) -> Array:
+@with_lexicographically_sorted_output
+def bond_indices_from_top(top: Topology) -> Array:
     """indices of atoms forming a bond
 
     Get the list of atom indices for those atoms that
     are directly bonded.
 
     Args:
-        traj: MDTraj trajectory
+        top: MDTraj topology
 
     Returns:
         bond_indices: array of bond indices, shape (n_bonds, 2)
     """
     bond_indices = []
-    for bond in traj.top.bonds:
+    for bond in top.bonds:
         indices = (bond.atom1.index, bond.atom2.index)
         bond_indices.append(indices)
-    return jnp.array(bond_indices, dtype=int)
+    bond_indices = jnp.array(bond_indices, dtype=int)
+    # enforce a convention for bond ordering here:
+    # first atom has smaller index
+    bond_indices = jnp.sort(bond_indices, axis=1)
+    return bond_indices
 
 
-def _maybe_add_indices(indices_list: List[Any], indices: Any) -> List[Any]:
-    "add indices if the tuple is not already collected"
-    sorted_indices = sorted(indices)
-    sorted_indices_collected = [sorted(i) for i in indices_list]
-    if sorted_indices not in sorted_indices_collected:
-        indices_list.append(indices)
-    return indices_list
-
-
-def angle_indices_from_traj(traj: Trajectory) -> Array:
+@with_lexicographically_sorted_output
+def angle_indices_from_top(top: Topology) -> Array:
     """indices of atoms forming an angle
 
     Get the list of atom indices for those triplets of
     atoms that are directly bonded.
 
     Args:
-        traj: MDTraj trajectory
+        top: MDTraj topology
 
     Returns:
         angle_indices: array of angle indices, shape (n_angles, 3)
     """
-    bond_indices = bond_indices_from_traj(traj)
-    angle_indices = []
-    for ai, aj in bond_indices:
-        for bond in bond_indices:
-            am, an = bond
-            if ai in bond and aj not in bond:
-                ak = am if ai != am else an
-                angle_indices = _maybe_add_indices(angle_indices, (ak, ai, aj))
-            elif aj in bond and ai not in bond:
-                ak = am if aj != am else an
-                angle_indices = _maybe_add_indices(angle_indices, (ai, aj, ak))
-    return jnp.array(angle_indices, dtype=int)
+    bond_indices = bond_indices_from_top(top)
+    angle_indices = angle_indices_from_bonds(bond_indices)
+    return angle_indices
 
 
-def dihe_indices_from_traj(traj: Trajectory) -> Array:
+def dihe_indices_from_top(top: Topology) -> Array:
     """indices of atoms forming a dihedral
 
     Get the list of atom indices for those quartets of
     atoms that are directly bonded.
 
     Args:
-        traj: MDTraj trajectory
+        top: MDTraj topology
 
     Returns:
         dihe_indices: array of dihedral indices, shape (n_diheds, 4)
     """
-    bond_indices = bond_indices_from_traj(traj)
-    angle_indices = angle_indices_from_traj(traj)
-    dihe_indices = []
-    for ai, aj, ak in angle_indices:
-        for bond in bond_indices:
-            am, an = bond
-            if ai in bond and aj not in bond and ak not in bond:
-                al = am if ai != am else an
-                dihe_indices = _maybe_add_indices(dihe_indices, (al, ai, aj, ak))
-            elif ak in bond and ai not in bond and aj not in bond:
-                al = am if ak != am else an
-                dihe_indices = _maybe_add_indices(dihe_indices, (ai, aj, ak, al))
-    return jnp.array(dihe_indices, dtype=int)
+    bond_indices = bond_indices_from_top(top)
+    angle_indices = angle_indices_from_bonds(bond_indices)
+    dihe_indices = dihe_indices_from_bonds_angles(bond_indices, angle_indices)
+    return dihe_indices
