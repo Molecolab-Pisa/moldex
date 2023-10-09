@@ -33,7 +33,7 @@ def _cm_matrix_element(
     """
     norm = jnp.linalg.norm(x1 - x2)
     not_zero = norm > 1e-20
-    return jnp.where(not_zero, (z1 * z2) / norm, 0.5 * jax.lax.abs(z1)**2.4)
+    return jnp.where(not_zero, (z1 * z2) / norm, 0.5 * jax.lax.abs(z1) ** 2.4)
 
 
 def _cm_matrix_element_tangent_arg0(
@@ -71,7 +71,9 @@ def _cm_matrix_element_tangent_arg1(
     norm = jnp.linalg.norm(x1 - x2)
     not_zero = norm > 1e-20
     return jnp.where(
-        not_zero, _cm_matrix_element(x1, z1, x2, z2) / z1, 0.5 * 2.4 * jax.lax.abs(z1) ** (1.4)
+        not_zero,
+        _cm_matrix_element(x1, z1, x2, z2) / z1,
+        0.5 * 2.4 * jax.lax.abs(z1) ** (1.4),
     )
 
 
@@ -107,7 +109,9 @@ def _cm_matrix_element_tangent_arg3(
     norm = jnp.linalg.norm(x1 - x2)
     not_zero = norm > 1e-20
     return jnp.where(
-        not_zero, _cm_matrix_element(x1, z1, x2, z2) / z2, 0.5 * 2.4 * jax.lax.abs(z1) ** (1.4)
+        not_zero,
+        _cm_matrix_element(x1, z1, x2, z2) / z2,
+        0.5 * 2.4 * jax.lax.abs(z1) ** (1.4),
     )
 
 
@@ -194,23 +198,24 @@ def coulomb_matrix(
 _coulomb_matrix.__doc__ = coulomb_matrix.__doc__
 
 
-def _coulomb_matrix_offdiag(
-    x1: ArrayLike, z1: ArrayLike
-) -> Array:
-    # This function computes only the off-diagonal elements of 
-    # the coulomb matrix. The output is a 1-D array with the 
-    # upper triangular part. 
+def _coulomb_matrix_offdiag(x1: ArrayLike, z1: ArrayLike) -> Array:
+    # This function computes only the off-diagonal elements of
+    # the coulomb matrix. The output is a 1-D array with the
+    # upper triangular part.
     n1, _ = x1.shape
-    cm = jnp.zeros((int(n1*(n1-1)/2)))
+    cm = jnp.zeros((int(n1 * (n1 - 1) / 2)))
 
     def row_scan(i, cm):
         def inner_func(j, cm):
-            k = (n1*(n1-1)/2) - (n1-i)*((n1-i)-1)/2 + j - i - 1
-            cm = cm.at[k.astype(int)].set(_cm_matrix_element(x1[i], z1[i], x1[j], z1[j])[0])
+            k = (n1 * (n1 - 1) / 2) - (n1 - i) * ((n1 - i) - 1) / 2 + j - i - 1
+            cm = cm.at[k.astype(int)].set(
+                _cm_matrix_element(x1[i], z1[i], x1[j], z1[j])
+            )
             return cm
-        return jax.lax.fori_loop(i+1, n1, inner_func, cm)
 
-    cm = jax.lax.fori_loop(0, n1-1, row_scan, cm)
+        return jax.lax.fori_loop(i + 1, n1, inner_func, cm)
+
+    cm = jax.lax.fori_loop(0, n1 - 1, row_scan, cm)
 
     return cm
 
@@ -243,6 +248,7 @@ def coulomb_matrix_offdiag(
     """
     return _coulomb_matrix_offdiag(x1, z1)
 
+
 _coulomb_matrix_offdiag.__doc__ = coulomb_matrix_offdiag.__doc__
 
 
@@ -250,27 +256,22 @@ _coulomb_matrix_offdiag.__doc__ = coulomb_matrix_offdiag.__doc__
 # Descriptor Class
 # ===================================================================
 
-class CoulombMatrix:
 
+class CoulombMatrix:
     def __init__(self, offdiag=False):
         self.offdiag = offdiag
-
 
     @property
     def offdiag(self):
         return self._offdiag
 
     @offdiag.setter
-    def offdiag(self,value):
+    def offdiag(self, value):
         if value:
             self._compute_func = coulomb_matrix_offdiag
         else:
             self._compute_func = coulomb_matrix
         self._offdiag = value
 
-
-    def compute(self, x1, z1, x2=None,z2=None):
-        return self._compute_func(x1,z1,x2,z2)
-
-
-
+    def compute(self, x1, z1, x2=None, z2=None):
+        return self._compute_func(x1, z1, x2, z2)
