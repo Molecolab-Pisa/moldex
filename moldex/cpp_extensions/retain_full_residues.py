@@ -9,7 +9,7 @@ import numpy as np
 import jax
 from jax import core, dtypes, lax
 from jax import numpy as jnp
-from jax.abstract_arrays import ShapedArray
+from jax.core import ShapedArray
 from jax.interpreters import mlir, xla  # , batching  # ad
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call
@@ -35,7 +35,7 @@ from . import cpu_ops
 for _name, _value in cpu_ops.registrations().items():
     if _name.startswith("cpu_retain_full_residues"):
         # _value is a PyCapsule object containing the function pointer
-        xla_client.register_cpu_custom_call_target(_name, _value)
+        xla_client.register_custom_call_target(_name, _value)
 
 # If the GPU versions exist, also register those
 try:
