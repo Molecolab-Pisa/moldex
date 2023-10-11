@@ -16,7 +16,7 @@ def _compute_dihedral(p1, p2, p3, p4):
     q1 = q1 / jnp.linalg.norm(q1)
 
     q2 = jnp.subtract(p3, p2)
-    q2 = q2 / jnp.linalg.norm(q1)
+    q2 = q2 / jnp.linalg.norm(q2)
 
     q3 = jnp.subtract(p4, p3)
     q3 = q3 / jnp.linalg.norm(q3)
