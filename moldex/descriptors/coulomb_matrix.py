@@ -269,9 +269,32 @@ class CoulombMatrix:
     def offdiag(self, value):
         if value:
             self._compute_func = coulomb_matrix_offdiag
+            self._batched_compute_func = jax.vmap(
+                coulomb_matrix_offdiag, in_axes=(0, None, 0, None)
+            )
         else:
             self._compute_func = coulomb_matrix
+            self._batched_compute_func = jax.vmap(
+                coulomb_matrix, in_axes=(0, None, 0, None)
+            )
         self._offdiag = value
 
     def compute(self, x1, z1, x2=None, z2=None):
+        """
+        Args:
+            x1: coordinates (n_atoms_1, 3)
+            z1: atomic numbers (n_atoms_1,)
+            x2: coordinates 2 (n_atoms_2, 3)
+            z2: atomic numbers 2 (n_atoms_2,)
+        """
         return self._compute_func(x1, z1, x2, z2)
+
+    def compute_batch(self, x1, z1, x2=None, z2=None):
+        """
+        Args:
+            x1: coordinates (n_samples, n_atoms_1, 3)
+            z1: atomic numbers (n_atoms_1,)
+            x2: coordinates 2 (n_samples, n_atoms_2, 3)
+            z2: atomic numbers 2 (n_atoms_2,)
+        """
+        return self._batched_compute_func(x1, z1, x2, z2)
