@@ -99,9 +99,9 @@ if os.environ.get("MOLDEX_CUDA", "no").lower() == "yes":
 setup(
     name="moldex",
     version="0.0.1",
-    url="https://molimen1.dcci.unipi.it/molecolab/moldex.git",
-    author="Amanda Arcidiacono, Patrizia Mazzeo, Edoardo Cignoni",
-    author_email="amy.arci@gmail.com",
+    url="https://github.com/Molecolab-Pisa/moldex",
+    author="Amanda Arcidiacono, Patrizia Mazzeo, Edoardo Cignoni, Lorenzo Cupellini, Benedetta Mennucci",
+    author_email="amy.arci@gmail.com, mazzeo.patrizia.1998@gmail.com, edoardo.cignoni96@gmail.com",
     description=open("README.md").read(),
     long_description_content_type="text/markdown",
     packages=[
