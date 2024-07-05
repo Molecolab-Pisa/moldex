@@ -1,9 +1,12 @@
 import codecs
 import os
 import subprocess
+import numpy as np
 
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
+
+from Cython.Build import cythonize
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 
@@ -71,11 +74,15 @@ class CMakeBuildExt(build_ext):
         )
 
     def build_extension(self, ext):
-        target_name = ext.name.split(".")[-1]
-        subprocess.check_call(
-            ["cmake", "--build", ".", "--target", target_name],
-            cwd=self.build_temp,
-        )
+        # default to normal build for cython
+        if "clib" in ext.name:
+            super(CMakeBuildExt, self).build_extension(ext)
+        else:
+            target_name = ext.name.split(".")[-1]
+            subprocess.check_call(
+                ["cmake", "--build", ".", "--target", target_name],
+                cwd=self.build_temp,
+            )
 
 
 extensions = [
@@ -84,6 +91,15 @@ extensions = [
         ["moldex/cpp_extensions/cpu_ops.cc"],
     ),
 ]
+
+extensions += cythonize(
+    Extension(
+        "moldex.clib.indices_from_bonds",
+        ["moldex/cython/indices_from_bonds.pyx"],
+        include_dirs=[np.get_include()],
+        extra_compile_args=["-O3"],
+    )
+)
 
 if os.environ.get("MOLDEX_CUDA", "no").lower() == "yes":
     extensions.append(
@@ -98,7 +114,7 @@ if os.environ.get("MOLDEX_CUDA", "no").lower() == "yes":
 
 setup(
     name="moldex",
-    version="0.0.1",
+    version="0.0.2",
     url="https://github.com/Molecolab-Pisa/moldex",
     author="Amanda Arcidiacono, Patrizia Mazzeo, Edoardo Cignoni, Lorenzo Cupellini, Benedetta Mennucci",
     author_email="amy.arci@gmail.com, mazzeo.patrizia.1998@gmail.com, edoardo.cignoni96@gmail.com",
@@ -111,9 +127,10 @@ setup(
         "moldex.pytraj",
         "moldex.cpp_extensions",
         "moldex.sample_selection",
+        "moldex.cython",
     ],
     include_package_data=True,
-    install_requires=["jax", "jaxlib"],
+    install_requires=["jax", "jaxlib", "Cython"],
     ext_modules=extensions,
     cmdclass={"build_ext": CMakeBuildExt},
 )
