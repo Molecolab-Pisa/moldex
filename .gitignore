@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 *.egg-info
 *.so
+moldex/cython/*.c
 dev_notebooks/
 build/
 moldex/moldex_jax_version.py

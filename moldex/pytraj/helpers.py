@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Tuple, List
+from typing import Any, Tuple, List, Optional
 
 import warnings
 from jax import Array
@@ -83,7 +83,7 @@ def bond_indices_from_top(top: Topology) -> Tuple[Array, List[str]]:
 
 
 @with_lexicographically_sorted_output
-def _angle_indices_from_top(top: Topology) -> Array:
+def _angle_indices_from_top(top: Topology, legacy: Optional[bool] = False) -> Array:
     """indices of atoms forming an angle
 
     Get the list of atom indices for those triplets of
@@ -91,16 +91,20 @@ def _angle_indices_from_top(top: Topology) -> Array:
 
     Args:
         top: pytraj topology
+        legacy: use the full Python (old) implementation instead of
+                the Cython one.
 
     Returns:
         angle_indices: array of angle indices, shape (n_angles, 3)
     """
     bond_indices = _bond_indices_from_top(top)
-    angle_indices = angle_indices_from_bonds(bond_indices)
+    angle_indices = angle_indices_from_bonds(bond_indices, legacy=legacy)
     return angle_indices
 
 
-def angle_indices_from_top(top: Topology) -> Tuple[Array, List[str]]:
+def angle_indices_from_top(
+    top: Topology, legacy: Optional[bool] = False
+) -> Tuple[Array, List[str]]:
     """indices of atoms forming an angle
 
     Get the list of atom indices for those triplets of
@@ -109,17 +113,19 @@ def angle_indices_from_top(top: Topology) -> Tuple[Array, List[str]]:
 
     Args:
         top: pytraj topology
+        legacy: use the full Python (old) implementation instead of
+                the Cython one.
 
     Returns:
         angle_indices: array of angle indices, shape (n_angles, 3)
         angle_atnames: list of atom names forming the angles.
     """
-    angle_indices = _angle_indices_from_top(top=top)
+    angle_indices = _angle_indices_from_top(top=top, legacy=legacy)
     angle_atnames = _atom_names_from_indices(top=top, indices=angle_indices)
     return angle_indices, angle_atnames
 
 
-def _dihe_indices_from_top(top: Topology) -> Array:
+def _dihe_indices_from_top(top: Topology, legacy: Optional[bool] = False) -> Array:
     """indices of atoms forming a dihedral
 
     Get the list of atom indices for those quartets of
@@ -127,17 +133,23 @@ def _dihe_indices_from_top(top: Topology) -> Array:
 
     Args:
         top: pytraj topology
+        legacy: use the full Python (old) implementation instead of
+                the Cython one.
 
     Returns:
         dihe_indices: array of dihedral indices, shape (n_diheds, 4)
     """
     bond_indices = _bond_indices_from_top(top)
-    angle_indices = angle_indices_from_bonds(bond_indices)
-    dihe_indices = dihe_indices_from_bonds_angles(bond_indices, angle_indices)
+    angle_indices = angle_indices_from_bonds(bond_indices, legacy=legacy)
+    dihe_indices = dihe_indices_from_bonds_angles(
+        bond_indices, angle_indices, legacy=legacy
+    )
     return dihe_indices
 
 
-def dihe_indices_from_top(top: Topology) -> Tuple[Array, List[str]]:
+def dihe_indices_from_top(
+    top: Topology, legacy: Optional[bool] = False
+) -> Tuple[Array, List[str]]:
     """indices of atoms forming a dihedral
 
     Get the list of atom indices for those quartets of
@@ -146,12 +158,14 @@ def dihe_indices_from_top(top: Topology) -> Tuple[Array, List[str]]:
 
     Args:
         top: pytraj topology
+        legacy: use the full Python (old) implementation instead of
+                the Cython one.
 
     Returns:
         dihe_indices: array of dihedral indices, shape (n_diheds, 4)
         dihe_atnames: list of atom names forming the dihedrals.
     """
-    dihe_indices = _dihe_indices_from_top(top=top)
+    dihe_indices = _dihe_indices_from_top(top=top, legacy=legacy)
     dihe_atnames = _atom_names_from_indices(top=top, indices=dihe_indices)
     return dihe_indices, dihe_atnames
 
